@@ -1,0 +1,13 @@
+#IDE  and maven folders and tools
+.settings
+.mvn
+.project
+.springBeans
+.classpath
+mvnw*
+
+# compile folder
+target/
+
+#Remove config file
+src/main/resources/application.properties
