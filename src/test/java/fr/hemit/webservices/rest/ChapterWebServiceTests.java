@@ -30,6 +30,8 @@ public class ChapterWebServiceTests extends BasicTests {
 	private static final long nonExistingNovelId = 3;
 	private static final long ownedByOtherNovelId = 4;
 	
+	private static final long newChapterId = 72;
+	
 	@InjectMocks
 	private ChapterWebService svc = new ChapterWebService();
 	
@@ -49,6 +51,7 @@ public class ChapterWebServiceTests extends BasicTests {
 		chapters.add(new Chapter("my chapter"));
 		
 		Novel fredNov = new Novel();
+		fredNov.setNovelId(ownedNovelId);
 		fredNov.setUser(userFred);
 		
 		Novel otherNov = new Novel();
@@ -80,6 +83,62 @@ public class ChapterWebServiceTests extends BasicTests {
 	@Test
 	public void getChaptersForNovel_Returns403_WhenNovelIsNotUsersNovel(){
 		assertStatus503(svc.getChaptersForNovel(ownedByOtherNovelId, currentUserPrincipal));
+	}
+	
+	@Test
+	public void createChapter_Returns404_WhenNovelDoesNotExist(){
+		Mockito.when(chapterRep.findAllByNovel(Matchers.any(Novel.class))).thenReturn(new ArrayList<>());
+		ResponseEntity<Chapter> response = svc.createChapter(nonExistingNovelId, null, currentUserPrincipal);
+		
+		assertStatus404(response);
+	}
+	
+	@Test
+	public void createChapter_Returns403_WhenUserDoesNotOwnNovel(){
+		assertStatus503(svc.createChapter(ownedByOtherNovelId, null, currentUserPrincipal));
+	}
+	
+	@Test
+	public void createChapter_NominalCase_Returns201(){
+		Chapter newChapter = new Chapter();
+		newChapter.setTitle("New title");
+		
+		assertStatus201Created(svc.createChapter(ownedNovelId, newChapter, currentUserPrincipal));
+	}
+	
+	@Test
+	public void createChapter_NominalCase_ReturnsChapterWithId(){
+		ResponseEntity<Chapter> response = svc.createChapter(ownedNovelId, getNewChapter(), currentUserPrincipal);
+		Assert.assertEquals(newChapterId, response.getBody().getChapterId());
+	}
+	
+	@Test
+	public void createChapter_NominalCase_BindsChapterToNovel(){
+		ResponseEntity<Chapter> response = svc.createChapter(ownedNovelId, getNewChapter(), currentUserPrincipal);
+		Assert.assertEquals(ownedNovelId, response.getBody().getNovel().getNovelId());
+	}
+	
+	@Test
+	public void createChapter_NominalCase_SetsLastModificationDate(){
+		ResponseEntity<Chapter> response = svc.createChapter(ownedNovelId, getNewChapter(), currentUserPrincipal);
+		Date now = new Date();
+		Assert.assertTrue( now.getTime() - response.getBody().getLastModification().getTime() < 10000 );
+	}
+	
+	private Chapter getNewChapter(){
+		Chapter newChapter = new Chapter("My title");
+		
+		Mockito.when(chapterRep.save(newChapter)).then(updateChapterId(newChapterId, newChapter));
+		return newChapter;
+	}
+	
+	private Answer<Chapter> updateChapterId(long id, Chapter chapter){
+		return new Answer<Chapter>(){
+			public Chapter answer(InvocationOnMock invocation){
+				chapter.setChapterId(id);
+				return chapter;
+			}
+		};
 	}
 
 }
