@@ -7,20 +7,17 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import fr.hemit.BasicTests;
 import fr.hemit.domain.Chapter;
 import fr.hemit.domain.Novel;
-import fr.hemit.domain.User;
 import fr.hemit.repository.ChapterRepository;
 import fr.hemit.repository.NovelRepository;
 

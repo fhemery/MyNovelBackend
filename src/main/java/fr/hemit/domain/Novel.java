@@ -49,7 +49,7 @@ public class Novel {
 
 	@OneToMany(mappedBy = "novel", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
 	private List<Chapter> chapters;
-
+	
 	public List<Chapter> getChapters() {
 		return chapters;
 	}
