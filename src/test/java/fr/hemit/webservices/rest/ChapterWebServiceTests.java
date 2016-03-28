@@ -28,6 +28,9 @@ public class ChapterWebServiceTests extends BasicTests {
 	private static final long ownedByOtherNovelId = 4;
 	
 	private static final long newChapterId = 72;
+	private static final long ownedChapterId = 59;
+	private static final long nonOwnedChapterId = 56;
+	private static final long nonExisitingChapterId = 53; 
 	
 	@InjectMocks
 	private ChapterWebService svc = new ChapterWebService();
@@ -44,22 +47,34 @@ public class ChapterWebServiceTests extends BasicTests {
 		super.setUp();
 		this.setPrincipal(userFred);
 		
-		List<Chapter> chapters = new ArrayList<>();
-		chapters.add(new Chapter("my chapter"));
-		
 		Novel fredNov = new Novel();
 		fredNov.setNovelId(ownedNovelId);
 		fredNov.setUser(userFred);
 		
+		List<Chapter> chapters = new ArrayList<>();
+		Chapter newChapter = new Chapter("my chapter");
+		newChapter.setNovel(fredNov);
+		chapters.add(newChapter);
+		
+		
 		Novel otherNov = new Novel();
 		otherNov.setUser(userOther);
+		otherNov.setNovelId(ownedByOtherNovelId);
+		
+		Chapter nonOwnedChapter = new Chapter();
+		nonOwnedChapter.setNovel(otherNov);
 		
 		Mockito.when(chapterRep.findAllByNovel(Matchers.any(Novel.class))).thenReturn(chapters);
 		Mockito.when(novelRep.findOne(ownedNovelId)).thenReturn(fredNov);
 		Mockito.when(novelRep.findOne(nonExistingNovelId)).thenReturn(null);
 		Mockito.when(novelRep.findOne(ownedByOtherNovelId)).thenReturn(otherNov);
+		
+		Mockito.when(chapterRep.findOne(ownedChapterId)).thenReturn(newChapter);
+		Mockito.when(chapterRep.findOne(nonOwnedChapterId)).thenReturn(nonOwnedChapter);
+		Mockito.when(chapterRep.findOne(nonExisitingChapterId)).thenReturn(null);
 	}
 	
+	/* *************** GetChaptersForNovel ***************** */
 	@Test
 	public void getChaptersForNovel_NominalCase_ReturnsAllChapters(){
 		ResponseEntity<List<Chapter>> response= svc.getChaptersForNovel(ownedNovelId, this.currentUserPrincipal);
@@ -80,6 +95,33 @@ public class ChapterWebServiceTests extends BasicTests {
 	@Test
 	public void getChaptersForNovel_Returns403_WhenNovelIsNotUsersNovel(){
 		assertStatus503(svc.getChaptersForNovel(ownedByOtherNovelId, currentUserPrincipal));
+	}
+	
+	/* *************** GetChapterDetails ***************** */
+	@Test
+	public void getChapterDetails_Returns404_WhenChapterDoesNotExist(){
+		assertStatus404(svc.getChapterDetails(ownedNovelId, nonExisitingChapterId, currentUserPrincipal));
+	}
+	
+	@Test
+	public void getChapterDetails_Returns404_WhenChapterDoesNotBelongToNovel(){
+		assertStatus404(svc.getChapterDetails(ownedByOtherNovelId, ownedChapterId, currentUserPrincipal));
+	}
+	
+	@Test
+	public void getChapterDetails_Returns503_WhenNovelDoesNotBelongToUser(){
+		assertStatus503(svc.getChapterDetails(ownedByOtherNovelId, nonOwnedChapterId, currentUserPrincipal));
+	}
+	
+	@Test
+	public void getChapterDetails_NominalCase_ReturnsChapterWithScenes(){
+		ResponseEntity<Chapter> response = svc.getChapterDetails(ownedNovelId, ownedChapterId, currentUserPrincipal);
+		Assert.assertNotNull(response.getBody());
+	}
+	
+	@Test
+	public void getChapterDetails_NominalCase_ReturnsStatus200(){
+		assertStatus200Ok(svc.getChapterDetails(ownedNovelId, ownedChapterId, currentUserPrincipal));
 	}
 	
 	@Test

@@ -43,6 +43,23 @@ public class ChapterWebService {
 		return new ResponseEntity<List<Chapter>>(chapterRep.findAllByNovel(nv), HttpStatus.OK);
 	}
 	
+	@RequestMapping(value = "/{chapterId}", method = RequestMethod.GET)
+	public ResponseEntity<Chapter> getChapterDetails(@PathVariable("novelId") long novelId,
+			@PathVariable("chapterId") long chapterId,
+			Principal princ){
+		Chapter retrievedChapter = chapterRep.findOne(chapterId);
+		if (retrievedChapter == null 
+				|| retrievedChapter.getNovel().getNovelId() != novelId){
+			return new ResponseEntity<Chapter>(HttpStatus.NOT_FOUND);
+		}
+		else if (!retrievedChapter.getNovel().getUser().getUsername().equals(princ.getName())){
+			return new ResponseEntity<Chapter>(HttpStatus.FORBIDDEN);
+		}
+		// Load the scenes
+		retrievedChapter.getScenes();
+		return new ResponseEntity<Chapter>(retrievedChapter, HttpStatus.OK);
+	}
+	
 	@RequestMapping(value="/", method = RequestMethod.POST)
 	public ResponseEntity<Chapter> createChapter(@PathVariable("novelId") long novelId,
 			@RequestBody Chapter chapter, Principal princ){
