@@ -1,6 +1,7 @@
 package fr.hemit.webservices.rest;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 
 import java.util.Date;
@@ -13,8 +14,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.springframework.http.ResponseEntity;
 
 import fr.hemit.BasicTests;
@@ -25,6 +24,7 @@ import fr.hemit.domain.User;
 import fr.hemit.repository.NovelRepository;
 import fr.hemit.repository.SceneRepository;
 import fr.hemit.webservices.dto.SceneDto;
+import fr.hemit.webservices.dto.factories.SceneDtoFactory;
 
 public class SceneWebServiceTests extends BasicTests {
 	
@@ -46,6 +46,9 @@ public class SceneWebServiceTests extends BasicTests {
 	
 	@Mock
 	private NovelRepository novelRepo;
+	
+	@Mock
+	private SceneDtoFactory sceneFact;
 	
 	@Captor
 	private ArgumentCaptor<Scene> sceneCaptor;
@@ -74,47 +77,56 @@ public class SceneWebServiceTests extends BasicTests {
 		Mockito.when(novelRepo.findOne(ownedByOtherNovelId)).thenReturn(otherNov);
 		
 		Mockito.when(sceneRepo.findOne(ownedSceneId)).thenReturn(ownedScene);
-		
+
+		SceneDto sceneFactDto = new SceneDto();
+		sceneFactDto.setSceneId(newSceneId);
+		sceneFactDto.setLastModification(new Date());
+		Mockito.when(sceneFact.createSceneDtoFromScene(any(Scene.class))).thenReturn(sceneFactDto);
 	}
 	
 	@Test
 	public void createScene_NominalCase_Returns201(){
-		ResponseEntity<Scene> response = svc.createScene(ownedNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal);
+		ResponseEntity<SceneDto> response = svc.createScene(ownedNovelId, getNewScene(), currentUserPrincipal);
 		assertStatus201Created(response);
 	}
 	
 	@Test
 	public void createScene_NominalCase_SetsSceneId(){
-		ResponseEntity<Scene> response = svc.createScene(ownedNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal);
+		ResponseEntity<SceneDto> response = svc.createScene(ownedNovelId, getNewScene(), currentUserPrincipal);
 		Assert.assertEquals(newSceneId, response.getBody().getSceneId());
 	}
 	
 	@Test
 	public void createScene_NominalCase_SetsLastModificationDate(){
-		ResponseEntity<Scene> response = svc.createScene(ownedNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal);
+		ResponseEntity<SceneDto> response = svc.createScene(ownedNovelId, getNewScene(), currentUserPrincipal);
 		Date now = new Date();
 		Assert.assertTrue( now.getTime() - response.getBody().getLastModification().getTime() < 10000 );
 	}
 	
 	@Test
 	public void createScene_NominalCase_SetsChapter(){
-		ResponseEntity<Scene> response = svc.createScene(ownedNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal);
-		Assert.assertEquals("my chapter", response.getBody().getChapter().getTitle());
+		svc.createScene(ownedNovelId, getNewScene(), currentUserPrincipal);
+		
+		Mockito.verify(sceneRepo).save(sceneCaptor.capture());
+		Scene providedScene = sceneCaptor.getValue();
+		Assert.assertEquals("my chapter", providedScene.getChapter().getTitle());
 	}
 	
 	@Test
 	public void createScene_Returns404_WhenNovelDoesNotExist(){
-		assertStatus404(svc.createScene(nonExistingNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal));
+		assertStatus404(svc.createScene(nonExistingNovelId, getNewScene(), currentUserPrincipal));
 	}
 	
 	@Test
 	public void createScene_Returns503_WhenNovelDoesNotBelongToUser(){
-		assertStatus503(svc.createScene(ownedByOtherNovelId, ownedNovelChapterId, getNewScene(), currentUserPrincipal));
+		assertStatus503(svc.createScene(ownedByOtherNovelId, getNewScene(), currentUserPrincipal));
 	}
 	
 	@Test
 	public void createScene_Returns404_WhenChapterDoesNotBelongToNovel(){
-		assertStatus404(svc.createScene(ownedNovelId, nonOwnedNovelChapterId, getNewScene(), currentUserPrincipal));
+		SceneDto s = getNewScene();
+		s.setChapterId(nonOwnedNovelChapterId);
+		assertStatus404(svc.createScene(ownedNovelId, s, currentUserPrincipal));
 	}
 	
 	@Test
@@ -195,19 +207,11 @@ public class SceneWebServiceTests extends BasicTests {
 		return s;
 	}
 	
-	private Scene getNewScene(){
-		Scene newScene = new Scene("My title");
+	private SceneDto getNewScene(){
+		SceneDto newScene = new SceneDto();
+		newScene.setChapterId(ownedNovelChapterId);
 		
-		Mockito.when(sceneRepo.save(newScene)).then(updateSceneId(newSceneId, newScene));
+		Mockito.when(sceneRepo.save(any(Scene.class))).thenReturn(new Scene());
 		return newScene;
-	}
-	
-	private Answer<Scene> updateSceneId(long id, Scene scene){
-		return new Answer<Scene>(){
-			public Scene answer(InvocationOnMock invocation){
-				scene.setSceneId(id);
-				return scene;
-			}
-		};
 	}
 }

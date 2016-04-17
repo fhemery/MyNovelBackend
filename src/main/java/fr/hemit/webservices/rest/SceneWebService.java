@@ -18,9 +18,10 @@ import fr.hemit.domain.Scene;
 import fr.hemit.repository.NovelRepository;
 import fr.hemit.repository.SceneRepository;
 import fr.hemit.webservices.dto.SceneDto;
+import fr.hemit.webservices.dto.factories.SceneDtoFactory;
 
 @RestController
-@RequestMapping("api/novel/{novelId}/chapter/{chapterId}/scene")
+@RequestMapping("api/novel/{novelId}/scene")
 public class SceneWebService {
 
 	@Autowired
@@ -29,34 +30,39 @@ public class SceneWebService {
 	@Autowired
 	private NovelRepository novelRepo;
 	
+	@Autowired
+	private SceneDtoFactory sceneFact;
+	
 	@RequestMapping(value = "/", method = RequestMethod.POST)
-	public ResponseEntity<Scene> createScene(@PathVariable("novelId") long novelId,
-			@PathVariable("chapterId") long chapterId,
-			@RequestBody Scene scene,
+	public ResponseEntity<SceneDto> createScene(@PathVariable("novelId") long novelId,
+			@RequestBody SceneDto scene,
 			Principal princ){
 		// Checking novel and chapter exists
 		Novel nv = novelRepo.findOne(novelId);
 		if (nv == null){
-			return new ResponseEntity<Scene>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<SceneDto>(HttpStatus.NOT_FOUND);
 		}
 		else if (!nv.getUser().getUsername().equals(princ.getName())){
-			return new ResponseEntity<Scene>(HttpStatus.FORBIDDEN);
+			return new ResponseEntity<SceneDto>(HttpStatus.FORBIDDEN);
 		}
 		Chapter chapterToFind = new Chapter();
-		chapterToFind.setChapterId(chapterId);
+		chapterToFind.setChapterId(scene.getChapterId());
 		int chapterIndex = nv.getChapters().indexOf(chapterToFind);
 		
 		if (chapterIndex == -1){
-			return new ResponseEntity<Scene>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<SceneDto>(HttpStatus.NOT_FOUND);
 		}
 		
 		// Updating scene
-		scene.setLastModification(new Date());
-		scene.setChapter(nv.getChapters().get(chapterIndex));
-		Scene newScene = sceneRepo.save(scene);
+		Scene sceneToSave = new Scene();
+		sceneToSave.setTitle(scene.getTitle());
+		sceneToSave.setSummary(scene.getSummary());
+		sceneToSave.setLastModification(new Date());
+		sceneToSave.setChapter(nv.getChapters().get(chapterIndex));
+		Scene newScene = sceneRepo.save(sceneToSave);
 		
 		// Sending response
-		return new ResponseEntity<Scene>(newScene, HttpStatus.CREATED);
+		return new ResponseEntity<SceneDto>(sceneFact.createSceneDtoFromScene(newScene), HttpStatus.CREATED);
 	}
 	
 	@RequestMapping(value="/{sceneId}", method = RequestMethod.PUT)

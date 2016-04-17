@@ -8,6 +8,7 @@ public class SceneDto {
 	private String summary;
 	private String content;
 	private Date lastModification;
+	private long chapterId;
 	
 	public long getSceneId() {
 		return sceneId;
@@ -38,6 +39,12 @@ public class SceneDto {
 	}
 	public void setLastModification(Date lastModification) {
 		this.lastModification = lastModification;
+	}
+	public long getChapterId() {
+		return chapterId;
+	}
+	public void setChapterId(long chapterId) {
+		this.chapterId = chapterId;
 	}
 	
 	
