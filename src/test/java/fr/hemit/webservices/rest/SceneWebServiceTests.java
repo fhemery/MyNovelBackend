@@ -1,10 +1,15 @@
 package fr.hemit.webservices.rest;
 
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+
 import java.util.Date;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -16,8 +21,10 @@ import fr.hemit.BasicTests;
 import fr.hemit.domain.Chapter;
 import fr.hemit.domain.Novel;
 import fr.hemit.domain.Scene;
+import fr.hemit.domain.User;
 import fr.hemit.repository.NovelRepository;
 import fr.hemit.repository.SceneRepository;
+import fr.hemit.webservices.dto.SceneDto;
 
 public class SceneWebServiceTests extends BasicTests {
 	
@@ -29,6 +36,8 @@ public class SceneWebServiceTests extends BasicTests {
 	private static final long nonOwnedNovelChapterId = 14;
 	private static final long newSceneId = 72;
 	
+	private static final long ownedSceneId = 87;	
+	
 	@InjectMocks
 	private SceneWebService svc = new SceneWebService();
 	
@@ -37,6 +46,9 @@ public class SceneWebServiceTests extends BasicTests {
 	
 	@Mock
 	private NovelRepository novelRepo;
+	
+	@Captor
+	private ArgumentCaptor<Scene> sceneCaptor;
 	
 	@Before
 	@Override
@@ -53,9 +65,16 @@ public class SceneWebServiceTests extends BasicTests {
 		Novel otherNov = new Novel();
 		otherNov.setUser(userOther);
 		
+		Scene ownedScene = new Scene();
+		ownedScene.setChapter(newChapter);
+		newChapter.setNovel(fredNov);
+		
 		Mockito.when(novelRepo.findOne(ownedNovelId)).thenReturn(fredNov);
 		Mockito.when(novelRepo.findOne(nonExistingNovelId)).thenReturn(null);
 		Mockito.when(novelRepo.findOne(ownedByOtherNovelId)).thenReturn(otherNov);
+		
+		Mockito.when(sceneRepo.findOne(ownedSceneId)).thenReturn(ownedScene);
+		
 	}
 	
 	@Test
@@ -96,6 +115,84 @@ public class SceneWebServiceTests extends BasicTests {
 	@Test
 	public void createScene_Returns404_WhenChapterDoesNotBelongToNovel(){
 		assertStatus404(svc.createScene(ownedNovelId, nonOwnedNovelChapterId, getNewScene(), currentUserPrincipal));
+	}
+	
+	@Test
+	public void updateScene_Returns404_WhenSceneDoesNotExist(){
+		final long nonExistingSceneId = 88;
+		Mockito.when(sceneRepo.findOne(nonExistingSceneId)).thenReturn(null);
+		assertStatus404(svc.updateScene(1, nonExistingSceneId, new SceneDto(), currentUserPrincipal));
+	}
+	
+	@Test
+	public void updateScene_Returns404_WhenSceneDoesNotBelongToNovel(){
+		initSceneToUpdate();
+		
+		assertStatus404(svc.updateScene(2, sceneToUpdateId, new SceneDto(), currentUserPrincipal));
+	}
+	
+	@Test
+	public void updateScene_Returns503_WhenNovelDoesNotBelongToUser(){
+		Scene s = initSceneToUpdate();
+		s.getChapter().getNovel().setUser(new User(10, "someone else"));
+		
+		assertStatus503(svc.updateScene(1000, sceneToUpdateId, new SceneDto(), currentUserPrincipal));
+	}
+	
+	@Test
+	public void updateScene_NominalCase_Returns200(){
+		initSceneToUpdate();
+		
+		assertStatus200Ok(svc.updateScene(1000, sceneToUpdateId, new SceneDto(), currentUserPrincipal));
+	}
+	
+	@Test
+	public void updateScene_NominalCase_ShouldUpdateTitleSummaryAndContent(){
+		initSceneToUpdate();
+		
+		// Setting up proper scene to update
+		SceneDto sceneToUpdate = new SceneDto();
+		sceneToUpdate.setTitle("t2");
+		sceneToUpdate.setSummary("summ");
+		sceneToUpdate.setContent("content");
+		Mockito.when(sceneRepo.save(any(Scene.class))).thenReturn(new Scene());
+		
+		svc.updateScene(1000l, sceneToUpdateId, sceneToUpdate , currentUserPrincipal);
+		
+		// Capturing result and verifying.
+		Mockito.verify(sceneRepo).save(sceneCaptor.capture());
+		Scene providedScene = sceneCaptor.getValue();
+		assertEquals(sceneToUpdate.getTitle(), providedScene.getTitle());
+		assertEquals(sceneToUpdate.getSummary(), providedScene.getSummary());
+		assertEquals(sceneToUpdate.getContent(), providedScene.getContent());
+	}
+	
+	@Test
+	public void updateScene_NominalCase_ShouldUpdateLastModificationDate(){
+		initSceneToUpdate();
+		Mockito.when(sceneRepo.save(any(Scene.class))).thenReturn(new Scene());
+		
+		svc.updateScene(1000l, sceneToUpdateId, new SceneDto() , currentUserPrincipal);
+		Mockito.verify(sceneRepo).save(sceneCaptor.capture());
+		
+		Scene providedScene = sceneCaptor.getValue();
+		Date now = new Date();
+		assertTrue(now.getTime() - providedScene.getLastModification().getTime() < 10000);
+	}
+	
+	private static long sceneToUpdateId = 4;
+	private Scene initSceneToUpdate(){
+		Scene s = new Scene();
+		Chapter c = new Chapter();
+		s.setChapter(c);
+		Novel n = new Novel();
+		n.setNovelId(1000);
+		n.setUser(userFred);
+		c.setNovel(n);
+		
+		Mockito.when(sceneRepo.findOne(sceneToUpdateId)).thenReturn(s);
+		
+		return s;
 	}
 	
 	private Scene getNewScene(){

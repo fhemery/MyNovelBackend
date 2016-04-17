@@ -17,6 +17,7 @@ import fr.hemit.domain.Novel;
 import fr.hemit.domain.Scene;
 import fr.hemit.repository.NovelRepository;
 import fr.hemit.repository.SceneRepository;
+import fr.hemit.webservices.dto.SceneDto;
 
 @RestController
 @RequestMapping("api/novel/{novelId}/chapter/{chapterId}/scene")
@@ -56,5 +57,32 @@ public class SceneWebService {
 		
 		// Sending response
 		return new ResponseEntity<Scene>(newScene, HttpStatus.CREATED);
+	}
+	
+	@RequestMapping(value="/{sceneId}", method = RequestMethod.PUT)
+	public ResponseEntity<SceneDto> updateScene(@PathVariable("novelId") long novelId,
+			@PathVariable("sceneId") long sceneId,
+			@RequestBody SceneDto scene,
+			Principal princ){
+		
+		Scene dbScene = sceneRepo.findOne(sceneId);
+		if (dbScene == null 
+				|| dbScene.getChapter().getNovel().getNovelId() != novelId){
+			return new ResponseEntity<SceneDto>(HttpStatus.NOT_FOUND);
+		}
+		
+		Novel n = dbScene.getChapter().getNovel();
+		if (n.getUser().getUsername() != princ.getName()){
+			return new ResponseEntity<SceneDto>(HttpStatus.FORBIDDEN);
+		}
+		
+		dbScene.setTitle(scene.getTitle());
+		dbScene.setSummary(scene.getSummary());
+		dbScene.setContent(scene.getContent());
+		dbScene.setLastModification(new Date());
+		
+		sceneRepo.save(dbScene);
+		
+		return new ResponseEntity<SceneDto>(HttpStatus.OK);
 	}
 }
