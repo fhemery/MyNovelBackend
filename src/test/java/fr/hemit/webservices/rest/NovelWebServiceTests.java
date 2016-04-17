@@ -1,5 +1,7 @@
 package fr.hemit.webservices.rest;
 
+import static org.mockito.Matchers.any;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -19,6 +21,8 @@ import fr.hemit.BasicTests;
 import fr.hemit.domain.Chapter;
 import fr.hemit.domain.Novel;
 import fr.hemit.repository.NovelRepository;
+import fr.hemit.webservices.dto.NovelDto;
+import fr.hemit.webservices.dto.factories.NovelDtoFactory;
 
 public class NovelWebServiceTests extends BasicTests {
 	
@@ -34,7 +38,10 @@ public class NovelWebServiceTests extends BasicTests {
 	@Mock
 	private NovelRepository novelRep;
 	
-	private ResponseEntity<Novel> novelResponse;
+	@Mock
+	private NovelDtoFactory novelFact;
+	
+	private ResponseEntity<NovelDto> novelResponse;
 	
 	@Before
 	@Override
@@ -53,6 +60,9 @@ public class NovelWebServiceTests extends BasicTests {
 		Mockito.when(novelRep.findOne(NominalNovelId)).thenReturn(nov);
 		Mockito.when(novelRep.findOne(NonOwnedNovelId)).thenReturn(nonAllowedNovel);
 		Mockito.when(novelRep.findAllByUser(userFred)).thenReturn(novels);
+		
+		Mockito.when(novelFact.createNovelDtoFromNovel(any(Novel.class), any(boolean.class)))
+			.thenReturn(new NovelDto());
 	}
 
 	@Test
@@ -75,7 +85,7 @@ public class NovelWebServiceTests extends BasicTests {
 	
 	@Test
 	public void getNovels_NominalCase(){
-		ResponseEntity<List<Novel>> response = svc.getNovels(currentUserPrincipal);
+		ResponseEntity<List<NovelDto>> response = svc.getNovels(currentUserPrincipal);
 		
 		Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 		Assert.assertEquals(1, response.getBody().size());

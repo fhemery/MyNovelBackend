@@ -1,6 +1,7 @@
 package fr.hemit.webservices.rest;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -18,6 +19,8 @@ import fr.hemit.domain.Novel;
 import fr.hemit.domain.User;
 import fr.hemit.repository.NovelRepository;
 import fr.hemit.repository.UserRepository;
+import fr.hemit.webservices.dto.NovelDto;
+import fr.hemit.webservices.dto.factories.NovelDtoFactory;
 
 @RestController
 @RequestMapping("/api/novel")
@@ -28,28 +31,35 @@ public class NovelWebService {
 	
 	@Autowired
 	UserRepository userRep;
+	
+	@Autowired
+	NovelDtoFactory novelFact;
 
 	@RequestMapping(value = "/", method = RequestMethod.GET)
-	public ResponseEntity<List<Novel>> getNovels(Principal principal){
+	public ResponseEntity<List<NovelDto>> getNovels(Principal principal){
 		// Get the user
 		User usr = userRep.findOneByUsername(principal.getName());
-		
-		return new ResponseEntity<List<Novel>> (novelRep.findAllByUser(usr), HttpStatus.OK);
+		List<Novel> novels = novelRep.findAllByUser(usr);
+		List<NovelDto> novelList = new ArrayList<>();
+		for (Novel n : novels){
+			novelList.add(novelFact.createNovelDtoFromNovel(n, false));
+		}
+		return new ResponseEntity<List<NovelDto>> (novelList, HttpStatus.OK);
 	}
 	
 	@RequestMapping(value = "/{id}", method = RequestMethod.GET)
-	public ResponseEntity<Novel> getNovelById(@PathVariable("id") long id, Principal principal)
+	public ResponseEntity<NovelDto> getNovelById(@PathVariable("id") long id, Principal principal)
 	{
 		Novel nov = novelRep.findOne(id);
 		if (nov == null){
-			return new ResponseEntity<Novel>(HttpStatus.NOT_FOUND);
+			return new ResponseEntity<NovelDto>(HttpStatus.NOT_FOUND);
 		}
 		
 		if (!nov.getUser().getUsername().equals(principal.getName())){
-			return new ResponseEntity<Novel>(HttpStatus.FORBIDDEN);
+			return new ResponseEntity<NovelDto>(HttpStatus.FORBIDDEN);
 		}
 
-		ResponseEntity<Novel> response = new ResponseEntity<Novel>(nov, HttpStatus.OK);
+		ResponseEntity<NovelDto> response = new ResponseEntity<NovelDto>(novelFact.createNovelDtoFromNovel(nov, true), HttpStatus.OK);
 		return response;
 	}
 
