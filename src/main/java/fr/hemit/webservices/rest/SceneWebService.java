@@ -65,7 +65,7 @@ public class SceneWebService {
 		return new ResponseEntity<SceneDto>(sceneFact.createSceneDtoFromScene(newScene), HttpStatus.CREATED);
 	}
 	
-	@RequestMapping(value="/{sceneId}", method = RequestMethod.PUT)
+	@RequestMapping(value="/{sceneId}", method = RequestMethod.POST)
 	public ResponseEntity<SceneDto> updateScene(@PathVariable("novelId") long novelId,
 			@PathVariable("sceneId") long sceneId,
 			@RequestBody SceneDto scene,
@@ -78,7 +78,7 @@ public class SceneWebService {
 		}
 		
 		Novel n = dbScene.getChapter().getNovel();
-		if (n.getUser().getUsername() != princ.getName()){
+		if (!n.getUser().getUsername().equals(princ.getName())){
 			return new ResponseEntity<SceneDto>(HttpStatus.FORBIDDEN);
 		}
 		
